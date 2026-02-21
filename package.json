@@ -1,6 +1,6 @@
 {
   "name": "singlepage-router",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Micro client-side router with History API, hashbang, and middleware support. TypeScript rewrite of page.js with full type safety and dual ESM/CJS output.",
   "author": "openchubura",
   "license": "MIT",
