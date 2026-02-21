@@ -15,12 +15,19 @@ A micro client-side router with a clean TypeScript rewrite. Full `History` and `
 `singlepage-router` is a TypeScript rewrite of the classic [`page`](https://www.npmjs.com/package/page) package by [@visionmedia](https://github.com/visionmedia). The routing behaviour and API are intentionally kept familiar, but the internals have been modernised throughout:
 
 - **Written in TypeScript** — full type safety out of the box. No need for a separate `@types/` package. All classes, options, and callbacks are fully typed.
-- **Modern dual ESM/CJS build** — ships both `import` and `require` formats with a proper `exports` map. The original `page` predates the ESM ecosystem and relies on a single UMD/CommonJS bundle.
+- **Proper dual ESM/CJS build with an `exports` map** — ships both
+  `import` and `require` formats using a modern `package.json` `exports`
+  field with conditional resolution. The original `page` uses the legacy
+  `"module"` field pointing to a single `.mjs` file with no `exports`
+  map, no named exports, and no CJS/ESM conditional resolution support.
 - **Class-based internals** — `PageInstance`, `Context`, and `Route` are proper ES classes, replacing the original's prototype chain manipulation and constructor functions.
 - **No legacy code** — all `var` declarations, bitwise `~indexOf` tricks, IE-era guards, and the HTML5-History-API polyfill support have been removed. Targets modern browsers only.
 - **Updated `path-to-regexp`** — uses v6 versus the original's pinned v1.2.x, bringing improved pattern support and security fixes.
 - **`sideEffects: false`** — explicitly marked for bundler tree-shaking, so unused exports are dropped cleanly.
-- **Named exports** — alongside the default export, `Context`, `Route`, `PageInstance`, `createPage`, and all types are individually importable, which the original does not support cleanly.
+- **Proper named ES module exports** — `Context`, `Route`, `PageInstance`,
+  `createPage`, and all TypeScript types are individually importable as
+  true ESM named exports, enabling tree-shaking and typed auto-imports
+  in any modern editor.
 
 The public API — `page('/path', handler)`, `page()`, `page.show()`, `page.back()`, `page.exit()` etc. — works the same way as `page`, so migration is straightforward.
 
