@@ -1,5 +1,5 @@
 {
-  "name": "singlepage",
+  "name": "singlepage-router",
   "version": "1.0.0",
   "description": "Micro client-side router — TypeScript rewrite",
   "author": "",
@@ -11,10 +11,13 @@
     "pushstate",
     "hashbang"
   ],
-
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/filiperak/singlepage"
+  },
   "type": "module",
 
-  "source": "src/singlepage.ts",
+  "source": "src/index.ts",
 
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.js",
@@ -36,6 +39,8 @@
   "files": [
     "dist"
   ],
+
+  "sideEffects": false,
 
   "scripts": {
     "build": "npm run build:esm && npm run build:cjs && npm run build:types",
