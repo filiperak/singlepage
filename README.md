@@ -17,9 +17,7 @@ A micro client-side router with a clean TypeScript rewrite. Full `History` and `
 - **Written in TypeScript** — full type safety out of the box. No need for a separate `@types/` package. All classes, options, and callbacks are fully typed.
 - **Proper dual ESM/CJS build with an `exports` map** — ships both
   `import` and `require` formats using a modern `package.json` `exports`
-  field with conditional resolution. The original `page` uses the legacy
-  `"module"` field pointing to a single `.mjs` file with no `exports`
-  map, no named exports, and no CJS/ESM conditional resolution support.
+  field with conditional resolution.
 - **Class-based internals** — `PageInstance`, `Context`, and `Route` are proper ES classes, replacing the original's prototype chain manipulation and constructor functions.
 - **No legacy code** — all `var` declarations, bitwise `~indexOf` tricks, IE-era guards, and the HTML5-History-API polyfill support have been removed. Targets modern browsers only.
 - **Updated `path-to-regexp`** — uses v6 versus the original's pinned v1.2.x, bringing improved pattern support and security fixes.
