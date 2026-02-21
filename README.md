@@ -1,9 +1,9 @@
 # singlepage-router
 
-![npm version](https://img.shields.io/npm/v/singlepage-router)
-![npm bundle size](https://img.shields.io/bundlephobia/minzip/singlepage-router)
+![npm version](https://img.shields.io/npm/v/singlepage-router?color=brightgreen)
+![npm bundle size](https://img.shields.io/bundlephobia/minzip/singlepage-router?color=blue)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)
-![license](https://img.shields.io/npm/l/singlepage-router)
+![license](https://img.shields.io/badge/license-MIT-green)
 ![build](https://img.shields.io/github/actions/workflow/status/filiperak/singlepage/build.yml?branch=main)
 
 A micro client-side router with a clean TypeScript rewrite. Full `History` and `hashbang` support, zero runtime dependencies beyond `path-to-regexp`, and a modern dual ESM/CJS build system.
