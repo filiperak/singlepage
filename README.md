@@ -10,24 +10,51 @@ A micro client-side router with a clean TypeScript rewrite. Full `History` and `
 
 ---
 
+## What's different from `page`
+
+`singlepage-router` is a TypeScript rewrite of the classic [`page`](https://www.npmjs.com/package/page) package by [@visionmedia](https://github.com/visionmedia). The routing behaviour and API are intentionally kept familiar, but the internals have been modernised throughout:
+
+- **Written in TypeScript** — full type safety out of the box. No need for a separate `@types/` package. All classes, options, and callbacks are fully typed.
+- **Modern dual ESM/CJS build** — ships both `import` and `require` formats with a proper `exports` map. The original `page` predates the ESM ecosystem and relies on a single UMD/CommonJS bundle.
+- **Class-based internals** — `PageInstance`, `Context`, and `Route` are proper ES classes, replacing the original's prototype chain manipulation and constructor functions.
+- **No legacy code** — all `var` declarations, bitwise `~indexOf` tricks, IE-era guards, and the HTML5-History-API polyfill support have been removed. Targets modern browsers only.
+- **Updated `path-to-regexp`** — uses v6 versus the original's pinned v1.2.x, bringing improved pattern support and security fixes.
+- **`sideEffects: false`** — explicitly marked for bundler tree-shaking, so unused exports are dropped cleanly.
+- **Named exports** — alongside the default export, `Context`, `Route`, `PageInstance`, `createPage`, and all types are individually importable, which the original does not support cleanly.
+
+The public API — `page('/path', handler)`, `page()`, `page.show()`, `page.back()`, `page.exit()` etc. — works the same way as `page`, so migration is straightforward.
+
+---
+
+## Credits
+
+This package is a TypeScript rewrite of [**page**](https://www.npmjs.com/package/page), the original micro client-side router created by [TJ Holowaychuk (@visionmedia)](https://github.com/visionmedia). The core routing concepts, middleware chain design, `Context` model, and overall API shape all originate from that project.
+
+If you want the battle-tested original with a long history of production use and a large community, go use [`page`](https://github.com/visionmedia/page.js). This package exists as a modernised alternative for projects that want TypeScript support and a native ESM build from the start.
+
+Full credit and thanks to TJ and all contributors to the original `page.js` project.
+
+---
+
 ## Installation
 
 ```bash
 npm install singlepage-router
+```
 
 ---
 
 ## Quick Start
 
 ```ts
-import singlepage from 'singlepage-router';
+import page from 'singlepage-router';
 
-singlepage('/', () => render('home'));
-singlepage('/users', () => render('users'));
-singlepage('/users/:id', (ctx) => render('user', ctx.params.id));
-singlepage('*', () => render('404'));
+page('/', () => render('home'));
+page('/users', () => render('users'));
+page('/users/:id', (ctx) => render('user', ctx.params.id));
+page('*', () => render('404'));
 
-singlepage(); // start the router
+page(); // start the router
 ```
 
 ---
@@ -37,28 +64,28 @@ singlepage(); // start the router
 ### Basic routes
 
 ```ts
-import singlepage from 'singlepage-router';
+import page from 'singlepage-router';
 
-singlepage('/', (ctx, next) => {
+page('/', (ctx, next) => {
   console.log('home', ctx.pathname);
 });
 
-singlepage('/about', (ctx, next) => {
+page('/about', (ctx, next) => {
   console.log('about page');
 });
 
-singlepage(); // start
+page(); // start
 ```
 
 ### Route parameters
 
 ```ts
-singlepage('/users/:id', (ctx) => {
+page('/users/:id', (ctx) => {
   const { id } = ctx.params;
   console.log('user id:', id);
 });
 
-singlepage('/posts/:year/:month/:slug', (ctx) => {
+page('/posts/:year/:month/:slug', (ctx) => {
   const { year, month, slug } = ctx.params;
   console.log(`Post: ${slug} from ${month}/${year}`);
 });
@@ -69,29 +96,30 @@ singlepage('/posts/:year/:month/:slug', (ctx) => {
 Handlers receive a `next` function. Call it to pass control to the next matching handler, just like Express middleware.
 
 ```ts
-import singlepage, { Context } from 'singlepage-router';
+import page from 'singlepage-router';
+import type { Callback } from 'singlepage-router';
 
-function authenticate(ctx: Context, next: () => void) {
-  if (!isLoggedIn()) return singlepage.show('/login');
+const authenticate: Callback = (ctx, next) => {
+  if (!isLoggedIn()) return page.show('/login');
   next();
-}
+};
 
-function loadUser(ctx: Context, next: () => void) {
+const loadUser: Callback = (ctx, next) => {
   ctx.state.user = fetchUser(ctx.params.id);
   next();
-}
+};
 
-function renderProfile(ctx: Context) {
+const renderProfile: Callback = (ctx) => {
   render('profile', ctx.state.user);
-}
+};
 
-singlepage('/profile/:id', authenticate, loadUser, renderProfile);
+page('/profile/:id', authenticate, loadUser, renderProfile);
 ```
 
 ### Wildcard / catch-all
 
 ```ts
-singlepage('*', (ctx) => {
+page('*', (ctx) => {
   console.log('no route matched:', ctx.path);
   render('404');
 });
@@ -101,11 +129,11 @@ singlepage('*', (ctx) => {
 
 ```ts
 // Declarative redirect — from one path to another
-singlepage.redirect('/old-path', '/new-path');
+page.redirect('/old-path', '/new-path');
 
 // Imperative redirect from inside a handler
-singlepage('/legacy', () => {
-  singlepage.redirect('/modern');
+page('/legacy', () => {
+  page.redirect('/modern');
 });
 ```
 
@@ -113,13 +141,13 @@ singlepage('/legacy', () => {
 
 ```ts
 // Push a new history entry
-singlepage.show('/users/42');
+page.show('/users/42');
 
 // Replace the current history entry (no new entry added)
-singlepage.replace('/users/42');
+page.replace('/users/42');
 
 // Go back — falls back to a path if there is no history
-singlepage.back('/home');
+page.back('/home');
 ```
 
 ### Exit handlers
@@ -127,11 +155,11 @@ singlepage.back('/home');
 Exit handlers run when navigating *away* from a route. Useful for teardown, unsaved-change guards, or cancelling in-flight requests.
 
 ```ts
-singlepage('/editor', (ctx) => {
+page('/editor', (ctx) => {
   startEditor();
 });
 
-singlepage.exit('/editor', (ctx, next) => {
+page.exit('/editor', (ctx, next) => {
   if (hasUnsavedChanges()) {
     if (!confirm('Leave without saving?')) return;
   }
@@ -145,7 +173,7 @@ singlepage.exit('/editor', (ctx, next) => {
 For environments that can't use the HTML5 History API (e.g. `file://` protocol):
 
 ```ts
-singlepage.start({ hashbang: true });
+page.start({ hashbang: true });
 
 // URLs will look like: /#!/users/42
 ```
@@ -155,12 +183,12 @@ singlepage.start({ hashbang: true });
 If your app is not served from the root, set a base path:
 
 ```ts
-singlepage.base('/my-app');
+page.base('/my-app');
 
-singlepage('/dashboard', () => render('dashboard'));
+page('/dashboard', () => render('dashboard'));
 // Matches: /my-app/dashboard
 
-singlepage();
+page();
 ```
 
 ### Multiple isolated instances
@@ -182,23 +210,23 @@ publicRouter();
 
 Every handler receives a `Context` instance with the following properties:
 
-| Property        | Type                              | Description                              |
-|-----------------|-----------------------------------|------------------------------------------|
-| `path`          | `string`                          | The path without base                    |
-| `canonicalPath` | `string`                          | The full path including base             |
-| `pathname`      | `string`                          | Path without querystring or hash         |
-| `querystring`   | `string`                          | Querystring without the leading `?`      |
-| `hash`          | `string`                          | Hash fragment without the `#`            |
-| `params`        | `Record<string, string>`          | Matched route parameters                 |
-| `state`         | `Record<string, unknown>`         | Arbitrary state stored in history entry  |
-| `handled`       | `boolean`                         | Whether the context was handled          |
-| `routePath`     | `string`                          | The route pattern that matched           |
+| Property        | Type                      | Description                             |
+|-----------------|---------------------------|-----------------------------------------|
+| `path`          | `string`                  | The path without base                   |
+| `canonicalPath` | `string`                  | The full path including base            |
+| `pathname`      | `string`                  | Path without querystring or hash        |
+| `querystring`   | `string`                  | Querystring without the leading `?`     |
+| `hash`          | `string`                  | Hash fragment without the `#`           |
+| `params`        | `Record<string, string>`  | Matched route parameters                |
+| `state`         | `Record<string, unknown>` | Arbitrary state stored in history entry |
+| `handled`       | `boolean`                 | Whether the context was handled         |
+| `routePath`     | `string`                  | The route pattern that matched          |
 
 ```ts
-singlepage('/search', (ctx) => {
+page('/search', (ctx) => {
   console.log(ctx.querystring); // "q=typescript&page=2"
   console.log(ctx.hash);        // "results"
-  console.log(ctx.state);       // any state passed via singlepage.show()
+  console.log(ctx.state);       // any state passed via page.show()
 });
 ```
 
@@ -206,46 +234,46 @@ singlepage('/search', (ctx) => {
 
 ## API Reference
 
-### `singlepage(path, ...handlers)`
+### `page(path, ...handlers)`
 Register a route.
 
-### `singlepage()` / `singlepage.start(options?)`
+### `page()` / `page.start(options?)`
 Start the router. Dispatches the current URL immediately.
 
-| Option               | Type      | Default | Description                                      |
-|----------------------|-----------|---------|--------------------------------------------------|
-| `dispatch`           | `boolean` | `true`  | Dispatch the current route on start              |
-| `click`              | `boolean` | `true`  | Intercept link clicks automatically              |
-| `popstate`           | `boolean` | `true`  | Listen to `popstate` events                      |
-| `hashbang`           | `boolean` | `false` | Use `#!` URLs instead of History API             |
-| `decodeURLComponents`| `boolean` | `true`  | Decode URL params and querystrings               |
-| `window`             | `Window`  | `window`| Use a custom window object                       |
+| Option                | Type      | Default | Description                                |
+|-----------------------|-----------|---------|--------------------------------------------|
+| `dispatch`            | `boolean` | `true`  | Dispatch the current route on start        |
+| `click`               | `boolean` | `true`  | Intercept link clicks automatically        |
+| `popstate`            | `boolean` | `true`  | Listen to `popstate` events                |
+| `hashbang`            | `boolean` | `false` | Use `#!` URLs instead of History API       |
+| `decodeURLComponents` | `boolean` | `true`  | Decode URL params and querystrings         |
+| `window`              | `Window`  | `window`| Use a custom window object                 |
 
-### `singlepage.stop()`
+### `page.stop()`
 Unbind all event listeners and stop the router.
 
-### `singlepage.show(path, state?, dispatch?, push?)`
+### `page.show(path, state?, dispatch?, push?)`
 Navigate to `path`, pushing a new history entry.
 
-### `singlepage.replace(path, state?, init?, dispatch?)`
+### `page.replace(path, state?, init?, dispatch?)`
 Navigate to `path`, replacing the current history entry.
 
-### `singlepage.back(fallback?, state?)`
+### `page.back(fallback?, state?)`
 Go back in history. If no history exists, navigates to `fallback`.
 
-### `singlepage.redirect(from, to?)`
+### `page.redirect(from, to?)`
 Register a redirect from one path to another, or immediately redirect to a path.
 
-### `singlepage.base(path?)`
+### `page.base(path?)`
 Get or set the base path.
 
-### `singlepage.strict(enable?)`
+### `page.strict(enable?)`
 Get or set strict trailing-slash matching.
 
-### `singlepage.exit(path, ...handlers)`
+### `page.exit(path, ...handlers)`
 Register exit handlers for a route.
 
-### `singlepage.configure(options)`
+### `page.configure(options)`
 Reconfigure the router after start.
 
 ### `createPage()`
@@ -258,13 +286,14 @@ Create a new isolated router instance.
 ```
 your-project/
 ├── src/
-│   └── page.ts
+│   ├── index.ts         ← public entry point
+│   └── singlepage.ts    ← router implementation
 ├── scripts/
 │   └── fix-cjs-ext.mjs
-├── dist/                    ← generated, do not edit
-│   ├── esm/page.js
-│   ├── cjs/page.cjs
-│   └── types/page.d.ts
+├── dist/                ← generated by build, do not edit
+│   ├── esm/index.js
+│   ├── cjs/index.cjs
+│   └── types/index.d.ts
 ├── package.json
 ├── tsconfig.json
 ├── tsconfig.esm.json
@@ -284,8 +313,8 @@ npm run build
 Individual build steps:
 
 ```bash
-npm run build:esm    # ESM output → dist/esm/
-npm run build:cjs    # CJS output → dist/cjs/
+npm run build:esm    # ESM output  → dist/esm/
+npm run build:cjs    # CJS output  → dist/cjs/
 npm run build:types  # Type declarations → dist/types/
 ```
 
