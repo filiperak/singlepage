@@ -15,6 +15,10 @@
     "type": "git",
     "url": "https://github.com/filiperak/singlepage"
   },
+  "homepage": "https://github.com/filiperak/singlepage-router#readme",
+  "bugs": {
+    "url": "https://github.com/filiperak/singlepage-router/issues"
+  },
   "type": "module",
 
   "source": "src/index.ts",
