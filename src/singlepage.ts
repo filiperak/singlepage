@@ -9,7 +9,7 @@ const hasWindow = typeof window !== 'undefined';
 const hasHistory = typeof history !== 'undefined';
 
 const clickEvent: string =
-  hasDocument && (document as any).ontouchstart ? 'touchstart' : 'click';
+  hasDocument && ('ontouchstart' in document) ? 'touchstart' : 'click';
 
 const isLocation = hasWindow && !!window.location;
 // ---------------------------------------------------------------------------
@@ -288,13 +288,12 @@ export class PageInstance {
     this.current = '';
     this.len = 0;
     this._running = false;
+    this.prevContext = undefined; 
 
     const win = this._window;
     if (!win) return;
 
-    if (this._click) {
-      win.document.removeEventListener(clickEvent, this._clickHandler as EventListener, false);
-    }
+    win.document.removeEventListener(clickEvent, this._clickHandler as EventListener, false);
     win.removeEventListener('popstate', this._onpopstate as EventListener, false);
     win.removeEventListener('hashchange', this._onpopstate as EventListener, false);
   }
@@ -416,7 +415,7 @@ export class PageInstance {
     // Resolve the closest <a> element, accounting for shadow DOM
     let el: Element | null = e.target as Element;
     const eventPath: EventTarget[] =
-      (e as any).path ?? (e.composedPath ? e.composedPath() : []);
+      (e as Event & { path?: EventTarget[] }).path ?? e.composedPath?.() ?? [];
 
     if (eventPath.length) {
       for (const node of eventPath) {
@@ -539,8 +538,9 @@ function createPopstateHandler(pageInstance: PageInstance) {
 
   return function onpopstate(this: PageInstance, e: PopStateEvent): void {
     if (!loaded) return;
-    if (e.state) {
-      pageInstance.replace(e.state['path'] as string, e.state as Record<string, unknown>);
+    if (e.state && typeof e.state === 'object') {
+      const state = e.state as Record<string, unknown>;
+      pageInstance.replace(state['path'] as string, state);
     } else if (isLocation) {
       const loc = pageInstance.getWindow()!.location;
       pageInstance.show(loc.pathname + loc.search + loc.hash, undefined, undefined, false);
@@ -625,38 +625,57 @@ export function createPage(): PageFunction {
    * - page()               → start
    * - page(options)        → start with options
    */
-  function pageFn(
-    path?: string | Callback | PageOptions,
-    ...fns: (Callback | string)[]
-  ): void {
-    if (typeof path === 'function') {
-      instance.register('*', path as Callback);
-      return;
-    }
-
-    if (typeof path === 'string') {
-      const callbacks = fns.filter((f): f is Callback => typeof f === 'function');
-      if (callbacks.length) {
-        instance.register(path, ...callbacks);
+  const pageFn = Object.assign(
+    function(
+      path?: string | Callback | PageOptions,
+      ...fns: (Callback | string)[]
+    ): void {
+      if (typeof path === 'function') {
+        instance.register('*', path as Callback);
         return;
       }
-      // string + string → redirect
-      if (typeof fns[0] === 'string') {
-        instance.redirect(path, fns[0] as string);
+
+      if (typeof path === 'string') {
+        const callbacks = fns.filter((f): f is Callback => typeof f === 'function');
+        if (callbacks.length) {
+          instance.register(path, ...callbacks);
+          return;
+        }
+        // string + string → redirect
+        if (typeof fns[0] === 'string') {
+          instance.redirect(path, fns[0] as string);
+          return;
+        }
+        // string only → navigate
+        instance.show(path);
         return;
       }
-      // string only → navigate
-      instance.show(path);
-      return;
+
+      // No args or options object → start
+      instance.start((path as PageOptions | undefined) ?? {});
+    },
+    // All static properties assigned
+    {
+      callbacks:    instance.callbacks,
+      exits:        instance.exits,
+      base:         instance.base.bind(instance),
+      strict:       instance.strict.bind(instance),
+      start:        instance.start.bind(instance),
+      stop:         instance.stop.bind(instance),
+      show:         instance.show.bind(instance),
+      back:         instance.back.bind(instance),
+      redirect:     instance.redirect.bind(instance),
+      replace:      instance.replace.bind(instance),
+      dispatch:     instance.dispatch.bind(instance),
+      exit:         instance.exit.bind(instance),
+      configure:    instance.configure.bind(instance),
+      sameOrigin:   instance.sameOrigin.bind(instance),
+      clickHandler: instance.clickHandler.bind(instance),
+      create:       createPage,
+      Context,
+      Route,
     }
-
-    // No args or options object → start
-    instance.start((path as PageOptions | undefined) ?? {});
-  }
-
-  // Mirror mutable arrays by reference
-  (pageFn as any).callbacks = instance.callbacks;
-  (pageFn as any).exits = instance.exits;
+  ) as unknown as PageFunction;
 
   Object.defineProperty(pageFn, 'current', {
     get: () => instance.current,
@@ -668,26 +687,7 @@ export function createPage(): PageFunction {
     set: (v: number) => { instance.len = v; },
   });
 
-  // Bound method mirrors
-  (pageFn as any).base = instance.base.bind(instance);
-  (pageFn as any).strict = instance.strict.bind(instance);
-  (pageFn as any).start = instance.start.bind(instance);
-  (pageFn as any).stop = instance.stop.bind(instance);
-  (pageFn as any).show = instance.show.bind(instance);
-  (pageFn as any).back = instance.back.bind(instance);
-  (pageFn as any).redirect = instance.redirect.bind(instance);
-  (pageFn as any).replace = instance.replace.bind(instance);
-  (pageFn as any).dispatch = instance.dispatch.bind(instance);
-  (pageFn as any).exit = instance.exit.bind(instance);
-  (pageFn as any).configure = instance.configure.bind(instance);
-  (pageFn as any).sameOrigin = instance.sameOrigin.bind(instance);
-  (pageFn as any).clickHandler = instance.clickHandler.bind(instance);
-
-  (pageFn as any).create = createPage;
-  (pageFn as any).Context = Context;
-  (pageFn as any).Route = Route;
-
-  return pageFn as unknown as PageFunction;
+  return pageFn;
 }
 
 // ---------------------------------------------------------------------------
