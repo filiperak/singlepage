@@ -1,6 +1,6 @@
 {
   "name": "singlepage-router",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Micro client-side router with History API, hashbang, and middleware support. TypeScript rewrite of page.js with full type safety and dual ESM/CJS output.",
   "author": "openchubura",
   "license": "MIT",
@@ -20,13 +20,10 @@
     "url": "https://github.com/filiperak/singlepage-router/issues"
   },
   "type": "module",
-
   "source": "src/index.ts",
-
   "main": "./dist/cjs/index.cjs",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
-
   "exports": {
     ".": {
       "import": {
@@ -39,13 +36,10 @@
       }
     }
   },
-
   "files": [
     "dist"
   ],
-
   "sideEffects": false,
-
   "scripts": {
     "build": "npm run build:esm && npm run build:cjs && npm run build:types",
     "build:esm": "tsc -p tsconfig.esm.json",
@@ -55,15 +49,12 @@
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build"
   },
-
   "dependencies": {
     "path-to-regexp": "^6.3.0"
   },
-
   "devDependencies": {
     "typescript": "^5.4.5"
   },
-
   "engines": {
     "node": ">=16"
   }
