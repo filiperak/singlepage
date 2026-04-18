@@ -15,9 +15,9 @@
     "type": "git",
     "url": "https://github.com/filiperak/singlepage"
   },
-  "homepage": "https://github.com/filiperak/singlepage-router#readme",
+  "homepage": "https://github.com/filiperak/singlepage#readme",
   "bugs": {
-    "url": "https://github.com/filiperak/singlepage-router/issues"
+    "url": "https://github.com/filiperak/singlepage/issues"
   },
   "type": "module",
   "source": "src/index.ts",
@@ -47,13 +47,16 @@
     "build:types": "tsc -p tsconfig.types.json",
     "dev": "tsc -p tsconfig.esm.json --watch",
     "clean": "rm -rf dist",
+    "lint": "npx eslint src/",
     "prepublishOnly": "npm run clean && npm run build"
   },
   "dependencies": {
     "path-to-regexp": "^6.3.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "eslint": "^10.2.1",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^8.58.2"
   },
   "engines": {
     "node": ">=16"

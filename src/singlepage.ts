@@ -1,8 +1,11 @@
 import { pathToRegexp, Key } from 'path-to-regexp';
 
-// ---------------------------------------------------------------------------
+interface SVGAnimatedStringLike {
+  baseVal: string;
+  animVal: string;
+}
+
 // Environment guards
-// ---------------------------------------------------------------------------
 
 const hasDocument = typeof document !== 'undefined';
 const hasWindow = typeof window !== 'undefined';
@@ -12,9 +15,8 @@ const clickEvent: string =
   hasDocument && ('ontouchstart' in document) ? 'touchstart' : 'click';
 
 const isLocation = hasWindow && !!window.location;
-// ---------------------------------------------------------------------------
+
 // Types
-// ---------------------------------------------------------------------------
 
 export interface PageOptions {
   window?: Window & typeof globalThis;
@@ -26,10 +28,7 @@ export interface PageOptions {
 }
 
 export type Callback = (ctx: Context, next: () => void) => void;
-
-// ---------------------------------------------------------------------------
 // Context
-// ---------------------------------------------------------------------------
 
 export class Context {
   public readonly page: PageInstance;
@@ -65,15 +64,15 @@ export class Context {
     this.title = hasDocument && win ? win.document.title : '';
     this.state = state ?? {};
     this.state['path'] = path;
-    this.querystring = ~i
+    this.querystring = i !== -1
       ? pageInstance.decodeURLComponent(path.slice(i + 1))
       : '';
-    this.pathname = pageInstance.decodeURLComponent(~i ? path.slice(0, i) : path);
+    this.pathname = pageInstance.decodeURLComponent(i !== -1 ? path.slice(0, i) : path);
     this.params = {};
     this.hash = '';
 
     if (!hashbang) {
-      if (!~this.path.indexOf('#')) return;
+      if (this.path.indexOf('#') === -1) return;
       const parts = this.path.split('#');
       this.path = this.pathname = parts[0];
       this.hash = pageInstance.decodeURLComponent(parts[1]) || '';
@@ -109,9 +108,9 @@ export class Context {
   }
 }
 
-// ---------------------------------------------------------------------------
+
 // Route
-// ---------------------------------------------------------------------------
+
 
 export class Route {
   public readonly path: string;
@@ -143,8 +142,14 @@ export class Route {
 
   match(path: string, params: Record<string, string | undefined>): boolean {
     const qsIndex = path.indexOf('?');
-    const pathname = ~qsIndex ? path.slice(0, qsIndex) : path;
-    const m = this.regexp.exec(decodeURIComponent(pathname));
+    const pathname = qsIndex !== -1 ? path.slice(0, qsIndex) : path;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(pathname);
+    } catch {
+      return false;
+    }
+    const m = this.regexp.exec(decoded);
 
     if (!m) return false;
 
@@ -162,9 +167,9 @@ export class Route {
   }
 }
 
-// ---------------------------------------------------------------------------
+
 // PageInstance
-// ---------------------------------------------------------------------------
+
 
 export class PageInstance {
   public callbacks: Callback[] = [];
@@ -190,9 +195,7 @@ export class PageInstance {
     this._onpopstate = createPopstateHandler(this);
   }
 
-  // -------------------------------------------------------------------------
   // Accessors used by Context / Route
-  // -------------------------------------------------------------------------
 
   getWindow(): (Window & typeof globalThis) | undefined {
     return this._window;
@@ -218,9 +221,7 @@ export class PageInstance {
     return this._decodeURLEncodedURIComponent(val ?? '');
   }
 
-  // -------------------------------------------------------------------------
   // Public API
-  // -------------------------------------------------------------------------
 
   configure(options: PageOptions = {}): void {
     this._window = options.window ?? (hasWindow ? window : undefined);
@@ -288,7 +289,7 @@ export class PageInstance {
     this.current = '';
     this.len = 0;
     this._running = false;
-    this.prevContext = undefined; 
+    this.prevContext = undefined;
 
     const win = this._window;
     if (!win) return;
@@ -310,7 +311,7 @@ export class PageInstance {
 
   back(path?: string, state?: Record<string, unknown>): void {
     if (this.len > 0) {
-      hasHistory && this._window?.history.back();
+      if (hasHistory && this._window) this._window.history.back();
       this.len--;
     } else if (path) {
       setTimeout(() => this.show(path, state));
@@ -357,7 +358,7 @@ export class PageInstance {
         ctx.handled = false;
         return;
       }
-      if (!fn) return unhandled.call(this, ctx);
+      if (!fn) return this._unhandled(ctx);
       fn(ctx, nextEnter);
     };
 
@@ -375,8 +376,7 @@ export class PageInstance {
       return;
     }
     const route = new Route(path, undefined, this);
-    const handlers = fns.length ? fns : [];
-    for (const fn of handlers) {
+    for (const fn of fns) {
       this.callbacks.push(route.middleware(fn));
     }
   }
@@ -387,8 +387,7 @@ export class PageInstance {
       return;
     }
     const route = new Route(path, undefined, this);
-    const handlers = fns.length ? fns : [];
-    for (const fn of handlers) {
+    for (const fn of fns) {
       this.exits.push(route.middleware(fn));
     }
   }
@@ -415,7 +414,7 @@ export class PageInstance {
     // Resolve the closest <a> element, accounting for shadow DOM
     let el: Element | null = e.target as Element;
     const eventPath: EventTarget[] =
-      (e as Event & { path?: EventTarget[] }).path ?? e.composedPath?.() ?? [];
+      (e as Event & { path?: EventTarget[] }).path ?? (e.composedPath ? e.composedPath() : []);
 
     if (eventPath.length) {
       for (const node of eventPath) {
@@ -436,7 +435,7 @@ export class PageInstance {
     const anchor = el as HTMLAnchorElement;
     const isSvg =
       typeof anchor.href === 'object' &&
-      (anchor.href as any).constructor?.name === 'SVGAnimatedString';
+      (anchor.href as SVGAnimatedStringLike).constructor.name === 'SVGAnimatedString';
 
     if (anchor.hasAttribute('download') || anchor.getAttribute('rel') === 'external') return;
 
@@ -444,13 +443,13 @@ export class PageInstance {
     if (!this._hashbang && this._samePath(anchor) && (anchor.hash || link === '#')) return;
     if (link?.includes('mailto:')) return;
 
-    const target = isSvg ? (anchor.target as any).baseVal : anchor.target;
+    const target = isSvg ? (anchor.target as unknown as SVGAnimatedStringLike).baseVal : anchor.target;
     if (target) return;
 
     if (!isSvg && !this.sameOrigin(anchor.href)) return;
 
     let path: string = isSvg
-      ? (anchor.href as any).baseVal
+      ? (anchor.href as unknown as SVGAnimatedStringLike).baseVal
       : anchor.pathname + anchor.search + (anchor.hash || '');
 
     if (path[0] !== '/') path = '/' + path;
@@ -476,13 +475,13 @@ export class PageInstance {
     this.show(orig);
   }
 
-  // -------------------------------------------------------------------------
+
   // Private helpers
-  // -------------------------------------------------------------------------
+
 
   private _getBase(): string {
     if (this._base) return this._base;
-    const loc = hasWindow && this._window?.location;
+    const loc = hasWindow && this._window && this._window.location;
     if (hasWindow && this._hashbang && loc && loc.protocol === 'file:') {
       return loc.pathname;
     }
@@ -517,16 +516,34 @@ export class PageInstance {
       ? decodeURIComponent(val.replace(/\+/g, ' '))
       : val;
   }
+
+  private _unhandled(ctx: Context): void {
+    if (ctx.handled) return;
+    const win = this.getWindow();
+    if (!win) return;
+
+    let current: string;
+    if (this.isHashbang()) {
+      current = isLocation
+        ? this.getBase() + win.location.hash.replace('#!', '')
+        : '';
+    } else {
+      current = isLocation ? win.location.pathname + win.location.search : '';
+    }
+
+    if (current === ctx.canonicalPath) return;
+    this.stop();
+    ctx.handled = false;
+    if (isLocation) win.location.href = ctx.canonicalPath;
+  }
 }
 
-// ---------------------------------------------------------------------------
 // Popstate handler factory (mirrors the IIFE in the original)
-// ---------------------------------------------------------------------------
 
 function createPopstateHandler(pageInstance: PageInstance) {
   let loaded = false;
 
-  if (!hasWindow) return () => {};
+  if (!hasWindow) return () => { };
 
   if (hasDocument && document.readyState === 'complete') {
     loaded = true;
@@ -548,37 +565,13 @@ function createPopstateHandler(pageInstance: PageInstance) {
   };
 }
 
-// ---------------------------------------------------------------------------
 // Shared helpers
-// ---------------------------------------------------------------------------
 
 function escapeRegExp(s: string): string {
   return s.replace(/([.+*?=^!:${}()[\]|/\\])/g, '\\$1');
 }
 
-function unhandled(this: PageInstance, ctx: Context): void {
-  if (ctx.handled) return;
-  const win = this.getWindow();
-  if (!win) return;
-
-  let current: string;
-  if (this.isHashbang()) {
-    current = isLocation
-      ? this.getBase() + win.location.hash.replace('#!', '')
-      : '';
-  } else {
-    current = isLocation ? win.location.pathname + win.location.search : '';
-  }
-
-  if (current === ctx.canonicalPath) return;
-  this.stop();
-  ctx.handled = false;
-  if (isLocation) win.location.href = ctx.canonicalPath;
-}
-
-// ---------------------------------------------------------------------------
 // Public factory & callable page function
-// ---------------------------------------------------------------------------
 
 export interface PageFunction {
   (path: string | Callback, ...fns: Callback[]): void;
@@ -626,7 +619,7 @@ export function createPage(): PageFunction {
    * - page(options)        → start with options
    */
   const pageFn = Object.assign(
-    function(
+    function (
       path?: string | Callback | PageOptions,
       ...fns: (Callback | string)[]
     ): void {
@@ -656,22 +649,22 @@ export function createPage(): PageFunction {
     },
     // All static properties assigned
     {
-      callbacks:    instance.callbacks,
-      exits:        instance.exits,
-      base:         instance.base.bind(instance),
-      strict:       instance.strict.bind(instance),
-      start:        instance.start.bind(instance),
-      stop:         instance.stop.bind(instance),
-      show:         instance.show.bind(instance),
-      back:         instance.back.bind(instance),
-      redirect:     instance.redirect.bind(instance),
-      replace:      instance.replace.bind(instance),
-      dispatch:     instance.dispatch.bind(instance),
-      exit:         instance.exit.bind(instance),
-      configure:    instance.configure.bind(instance),
-      sameOrigin:   instance.sameOrigin.bind(instance),
+      callbacks: instance.callbacks,
+      exits: instance.exits,
+      base: instance.base.bind(instance),
+      strict: instance.strict.bind(instance),
+      start: instance.start.bind(instance),
+      stop: instance.stop.bind(instance),
+      show: instance.show.bind(instance),
+      back: instance.back.bind(instance),
+      redirect: instance.redirect.bind(instance),
+      replace: instance.replace.bind(instance),
+      dispatch: instance.dispatch.bind(instance),
+      exit: instance.exit.bind(instance),
+      configure: instance.configure.bind(instance),
+      sameOrigin: instance.sameOrigin.bind(instance),
       clickHandler: instance.clickHandler.bind(instance),
-      create:       createPage,
+      create: createPage,
       Context,
       Route,
     }
@@ -690,9 +683,7 @@ export function createPage(): PageFunction {
   return pageFn;
 }
 
-// ---------------------------------------------------------------------------
 // Default export — a single shared instance, matching the original module API
-// ---------------------------------------------------------------------------
 
 const singlepage = createPage();
 
